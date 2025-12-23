@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Safety Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+        }
+        
+        .card h2 {
+            color: #1f2937;
+            font-size: 22px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+        
+        .status-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        
+        #videoFrame {
+            width: 100%;
+            border-radius: 12px;
+            background: #1f2937;
+            min-height: 450px;
+            object-fit: contain;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.95;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        
+        .alert-item {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 14px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+        
+        .alert-item:hover {
+            transform: translateX(4px);
+        }
+        
+        .alert-item.critical {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+        
+        .alert-item.high {
+            background: #fed7aa;
+            border-left-color: #f97316;
+        }
+        
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .alert-time {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .event-item {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background 0.2s;
+        }
+        
+        .event-item:hover {
+            background: #f9fafb;
+        }
+        
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 8px;
+        }
+        
+        .risk-critical { background: #fee2e2; color: #991b1b; }
+        .risk-high { background: #fed7aa; color: #9a3412; }
+        .risk-medium { background: #fef3c7; color: #92400e; }
+        .risk-low { background: #d1fae5; color: #065f46; }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            flex: 1;
+            min-width: 140px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-upload {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .btn-upload:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        
+        .btn-analysis {
+            background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+            color: white;
+        }
+        
+        .btn-analysis:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5568d3 0%, #4c51bf 100%);
+        }
+        
+        .btn-analysis.stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .btn-analysis.stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+        
+        .btn-video {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        
+        .btn-video:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        
+        .btn-video.pause {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        
+        .btn-video.pause:hover:not(:disabled) {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        }
+        
+        .upload-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 10px;
+            border: 2px dashed #d1d5db;
+        }
+        
+        .upload-section.has-video {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        #videoStatus {
+            display: block;
+            margin-top: 10px;
+            color: #059669;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .alerts-container, .events-container {
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .alerts-container::-webkit-scrollbar,
+        .events-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .alerts-container::-webkit-scrollbar-track,
+        .events-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .alerts-container::-webkit-scrollbar-thumb,
+        .events-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Factory Safety Monitoring System</h1>
+            <p>Real-Time Vision-Language Model Based Safety Analysis</p>
+        </div>
+        
+        <div class="grid">
+            <!-- Left column: Video feed -->
+            <div>
+                <div class="card">
+                    <h2>
+                        <span class="status-indicator"></span>
+                        Live Monitoring
+                    </h2>
+                    <img id="videoFrame" src="" alt="Video feed">
+                    <div class="upload-section" id="uploadSection">
+                        <input type="file" id="videoUpload" accept="video/*" style="display: none;" onchange="uploadVideo(this.files[0])">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn btn-upload" onclick="document.getElementById('videoUpload').click()">
+                                📁 Upload Video
+                            </button>
+                            <button class="btn" id="removeVideoBtn" onclick="removeVideo()" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; display: none;">
+                                🗑️ Remove Video
+                            </button>
+                        </div>
+                        <span id="videoStatus"></span>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-analysis" onclick="toggleAnalysis()" id="analysisBtn">▶ Start Analysis</button>
+                        <button class="btn btn-video" onclick="toggleVideoPlayback()" id="playPauseBtn">▶ Play Video</button>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📊 System Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Frames Processed</div>
+                            <div class="stat-value" id="framesProcessed">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Processing Rate</div>
+                            <div class="stat-value" id="fps">0.0</div>
+                            <div class="stat-label">FPS</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Events Detected</div>
+                            <div class="stat-value" id="eventsDetected">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Alerts Generated</div>
+                            <div class="stat-value" id="alertsGenerated">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right column: Alerts and Events -->
+            <div>
+                <div class="card">
+                    <h2>🚨 Recent Alerts</h2>
+                    <div class="alerts-container" id="alertsContainer">
+                        <div class="empty-state">
+                            <p>No alerts yet. System will display safety alerts here.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📋 Safety Events</h2>
+                    <div class="events-container" id="eventsContainer">
+                        <div class="empty-state">
+                            <p>No events yet. Detected safety events will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let isRunning = false;
+        
+        let videoPlaying = true;
+        
+        function toggleAnalysis() {
+            const btn = document.getElementById('analysisBtn');
+            if (isRunning) {
+                // Stop analysis
+                fetch('/api/stop')
+                    .then(r => r.json())
+                    .then(data => {
+                        isRunning = false;
+                        btn.textContent = '▶ Start Analysis';
+                        btn.classList.remove('stop');
+                        console.log('Stopped analysis');
+                    })
+                    .catch(err => {
+                        console.error('Stop error:', err);
+                        alert('Failed to stop: ' + err.message);
+                    });
+            } else {
+                // Start analysis - but check if video is playing first
+                if (!videoPlaying) {
+                    alert('⚠️ Please start video playback first!');
+                    return;
+                }
+                
+                fetch('/api/start')
+                    .then(r => {
+                        if (!r.ok) {
+                            return r.json().then(data => {
+                                throw new Error(data.message || 'Failed to start');
+                            });
+                        }
+                        return r.json();
+                    })
+                    .then(data => {
+                        isRunning = true;
+                        btn.textContent = '⏹ Stop Analysis';
+                        btn.classList.add('stop');
+                        console.log('Started analysis');
+                    })
+                    .catch(err => {
+                        console.error('Start error:', err);
+                        alert(err.message || 'Failed to start: ' + err.message);
+                    });
+            }
+        }
+        
+        function toggleVideoPlayback() {
+            videoPlaying = !videoPlaying;
+            fetch('/api/video/play', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({play: videoPlaying})
+            })
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const btn = document.getElementById('playPauseBtn');
+                    const analysisBtn = document.getElementById('analysisBtn');
+                    
+                    if (btn) {
+                        if (videoPlaying) {
+                            btn.textContent = '⏸ Pause Video';
+                            btn.classList.add('pause');
+                        } else {
+                            btn.textContent = '▶ Play Video';
+                            btn.classList.remove('pause');
+                        }
+                    }
+                    
+                    // If video was paused, analysis was automatically paused
+                    if (data.analysis_paused) {
+                        isRunning = false;
+                        if (analysisBtn) {
+                            analysisBtn.textContent = '▶ Start Analysis';
+                            analysisBtn.classList.remove('stop');
+                        }
+                        console.log('Analysis automatically paused because video paused');
+                    }
+                    
+                    console.log('Video playback:', videoPlaying ? 'playing' : 'paused');
+                } else {
+                    throw new Error(data.error || 'Failed to toggle playback');
+                }
+            })
+            .catch(err => {
+                console.error('Playback toggle error:', err);
+                alert('Failed to toggle video: ' + err.message);
+                // Revert state on error
+                videoPlaying = !videoPlaying;
+            });
+        }
+        
+        // Check if video ended and update UI
+        function checkVideoEnded() {
+            fetch('/api/video/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.has_video && !data.playing) {
+                        // Check if we're at the end
+                        const current = data.current_frame || 0;
+                        const total = data.total_frames || 0;
+                        
+                        if (current >= total - 1 && total > 0) {
+                            // Video ended - update button
+                            const btn = document.getElementById('playPauseBtn');
+                            const analysisBtn = document.getElementById('analysisBtn');
+                            
+                            if (btn) {
+                                btn.textContent = '▶ Play Video';
+                                btn.classList.remove('pause');
+                            }
+                            
+                            // Make sure analysis is stopped
+                            if (isRunning) {
+                                isRunning = false;
+                                if (analysisBtn) {
+                                    analysisBtn.textContent = '▶ Start Analysis';
+                                    analysisBtn.classList.remove('stop');
+                                }
+                            }
+                            
+                            videoPlaying = false;
+                        }
+                    }
+                })
+                .catch(err => console.error('Error checking video status:', err));
+        }
+        
+        function updateFrame() {
+            fetch('/api/frame')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.frame && data.frame.length > 0) {
+                        const img = document.getElementById('videoFrame');
+                        img.src = data.frame;
+                        img.style.display = 'block';
+                    } else {
+                        console.log('No frame data received');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching frame:', error);
+                });
+        }
+        
+        function updateStats() {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('framesProcessed').textContent = data.frames_processed || 0;
+                    document.getElementById('fps').textContent = (data.fps || 0).toFixed(2);
+                    document.getElementById('eventsDetected').textContent = data.events_detected || 0;
+                    document.getElementById('alertsGenerated').textContent = data.alerts_generated || 0;
+                    
+                    // Show analysis status
+                    const statusIndicator = document.querySelector('.status-indicator');
+                    if (data.is_analyzing) {
+                        if (statusIndicator) statusIndicator.style.background = '#10b981'; // Green
+                    } else {
+                        if (statusIndicator) statusIndicator.style.background = '#9ca3af'; // Gray
+                    }
+                });
+        }
+        
+        function updateAlerts() {
+            fetch('/api/alerts')
+                .then(r => r.json())
+                .then(alerts => {
+                    if (alerts.length > 0) {
+                        const container = document.getElementById('alertsContainer');
+                        alerts.forEach(alert => {
+                            const alertDiv = document.createElement('div');
+                            alertDiv.className = `alert-item ${alert.priority}`;
+                            alertDiv.innerHTML = `
+                                <div class="alert-title">
+                                    <span>${alert.title}</span>
+                                    <span class="alert-time">${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div>${alert.message}</div>
+                            `;
+                            container.insertBefore(alertDiv, container.firstChild);
+                            
+                            // Remove empty state
+                            const emptyState = container.querySelector('.empty-state');
+                            if (emptyState) emptyState.remove();
+                            
+                            // Keep only last 10
+                            while (container.children.length > 10) {
+                                container.removeChild(container.lastChild);
+                            }
+                        });
+                    }
+                });
+        }
+        
+        function updateEvents() {
+            fetch('/api/events')
+                .then(r => r.json())
+                .then(events => {
+                    const container = document.getElementById('eventsContainer');
+                    
+                    if (events.length > 0) {
+                        events.forEach(event => {
+                            // Check if event already displayed (avoid duplicates)
+                            const eventId = event.event_id || event.title + event.timestamp;
+                            if (container.querySelector(`[data-event-id="${eventId}"]`)) {
+                                return; // Already displayed
+                            }
+                            
+                            const eventDiv = document.createElement('div');
+                            eventDiv.className = 'event-item';
+                            eventDiv.setAttribute('data-event-id', eventId);
+                            eventDiv.innerHTML = `
+                                <div>
+                                    <span class="risk-badge risk-${event.risk_level.toLowerCase()}">${event.risk_level}</span>
+                                    <strong>${event.title}</strong>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                                    ${event.description || ''}
+                                </div>
+                                <div style="font-size: 11px; color: #999; margin-top: 2px;">
+                                    ${new Date(event.timestamp).toLocaleTimeString()}
+                                </div>
+                            `;
+                            container.insertBefore(eventDiv, container.firstChild);
+                            
+                            // Remove empty state
+                            const emptyState = container.querySelector('.empty-state');
+                            if (emptyState) emptyState.remove();
+                            
+                            // Keep only last 20
+                            while (container.children.length > 20) {
+                                container.removeChild(container.lastChild);
+                            }
+                        });
+                    } else {
+                        // Show message if analysis is running but no events yet
+                        const emptyState = container.querySelector('.empty-state');
+                        if (!emptyState && container.children.length === 0) {
+                            const msg = document.createElement('div');
+                            msg.className = 'empty-state';
+                            msg.textContent = 'Analysis running... No events detected yet.';
+                            container.appendChild(msg);
+                        }
+                    }
+                })
+                .catch(err => console.error('Error fetching events:', err));
+        }
+        
+        function uploadVideo(file) {
+            if (!file) return;
+            
+            const uploadSection = document.getElementById('uploadSection');
+            const statusSpan = document.getElementById('videoStatus');
+            const removeBtn = document.getElementById('removeVideoBtn');
+            const formData = new FormData();
+            formData.append('video', file);
+            
+            statusSpan.textContent = 'Uploading...';
+            
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusSpan.textContent = `✅ Loaded: ${data.filename} (${data.duration.toFixed(1)}s)`;
+                    uploadSection.classList.add('has-video');
+                    if (removeBtn) removeBtn.style.display = 'block';
+                    console.log('Video uploaded:', data);
+                } else {
+                    statusSpan.textContent = `❌ Error: ${data.error || 'Upload failed'}`;
+                    uploadSection.classList.remove('has-video');
+                    if (removeBtn) removeBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                statusSpan.textContent = `❌ Upload error: ${error.message}`;
+                uploadSection.classList.remove('has-video');
+                if (removeBtn) removeBtn.style.display = 'none';
+                console.error('Upload error:', error);
+            });
+        }
+        
+        function removeVideo() {
+            if (!confirm('Remove video and clear all analysis data?')) {
+                return;
+            }
+            
+            fetch('/api/video/remove', {
+                method: 'POST'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reset UI
+                    const uploadSection = document.getElementById('uploadSection');
+                    const statusSpan = document.getElementById('videoStatus');
+                    const removeBtn = document.getElementById('removeVideoBtn');
+                    const analysisBtn = document.getElementById('analysisBtn');
+                    const playPauseBtn = document.getElementById('playPauseBtn');
+                    const videoFrame = document.getElementById('videoFrame');
+                    
+                    // Clear video display
+                    if (videoFrame) {
+                        videoFrame.src = '';
+                    }
+                    
+                    // Reset upload section
+                    uploadSection.classList.remove('has-video');
+                    statusSpan.textContent = '';
+                    if (removeBtn) removeBtn.style.display = 'none';
+                    
+                    // Reset buttons
+                    if (analysisBtn) {
+                        analysisBtn.textContent = '▶ Start Analysis';
+                        analysisBtn.classList.remove('stop');
+                    }
+                    if (playPauseBtn) {
+                        playPauseBtn.textContent = '▶ Play Video';
+                        playPauseBtn.classList.remove('pause');
+                    }
+                    
+                    // Clear stats
+                    document.getElementById('framesProcessed').textContent = '0';
+                    document.getElementById('fps').textContent = '0.0';
+                    document.getElementById('eventsDetected').textContent = '0';
+                    document.getElementById('alertsGenerated').textContent = '0';
+                    
+                    // Clear alerts and events
+                    const alertsContainer = document.getElementById('alertsContainer');
+                    const eventsContainer = document.getElementById('eventsContainer');
+                    if (alertsContainer) {
+                        alertsContainer.innerHTML = '<div class="empty-state"><p>No alerts yet. System will display safety alerts here.</p></div>';
+                    }
+                    if (eventsContainer) {
+                        eventsContainer.innerHTML = '<div class="empty-state"><p>No events yet. Detected safety events will appear here.</p></div>';
+                    }
+                    
+                    // Reset state
+                    isRunning = false;
+                    videoPlaying = false;
+                    
+                    console.log('Video removed and data cleared');
+                } else {
+                    alert('Failed to remove video: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Remove video error:', error);
+                alert('Failed to remove video: ' + error.message);
+            });
+        }
+        
+        function checkVideoStatus() {
+            fetch('/api/video/status')
+                .then(r => r.json())
+                .then(data => {
+                    const uploadSection = document.getElementById('uploadSection');
+                    const statusEl = document.getElementById('videoStatus');
+                    const removeBtn = document.getElementById('removeVideoBtn');
+                    
+                    if (data.has_video) {
+                        uploadSection.classList.add('has-video');
+                        if (removeBtn) removeBtn.style.display = 'block';
+                        if (statusEl && !statusEl.textContent.includes('✅')) {
+                            statusEl.textContent = `📹 Playing: ${data.filename}`;
+                        }
+                    } else {
+                        uploadSection.classList.remove('has-video');
+                        if (removeBtn) removeBtn.style.display = 'none';
+                    }
+                });
+        }
+        
+        // Clear everything on page load
+        window.addEventListener('load', function() {
+            // Reset all state
+            isRunning = false;
+            videoPlaying = false;
+            
+            // Clear stats
+            document.getElementById('framesProcessed').textContent = '0';
+            document.getElementById('fps').textContent = '0.0';
+            document.getElementById('eventsDetected').textContent = '0';
+            document.getElementById('alertsGenerated').textContent = '0';
+            
+            // Clear alerts and events
+            const alertsContainer = document.getElementById('alertsContainer');
+            const eventsContainer = document.getElementById('eventsContainer');
+            if (alertsContainer && alertsContainer.children.length === 0) {
+                alertsContainer.innerHTML = '<div class="empty-state"><p>No alerts yet. System will display safety alerts here.</p></div>';
+            }
+            if (eventsContainer && eventsContainer.children.length === 0) {
+                eventsContainer.innerHTML = '<div class="empty-state"><p>No events yet. Detected safety events will appear here.</p></div>';
+            }
+            
+            // Hide remove button initially
+            const removeBtn = document.getElementById('removeVideoBtn');
+            if (removeBtn) removeBtn.style.display = 'none';
+            
+            // Check if there's a video on load
+            checkVideoStatus();
+        });
+        
+        // Update intervals
+        setInterval(updateFrame, 1000);
+        setInterval(updateStats, 1000);
+        setInterval(updateAlerts, 1000);
+        setInterval(updateEvents, 1000);
+        setInterval(checkVideoStatus, 2000);
+        setInterval(checkVideoEnded, 1000);  // Check if video ended
+        
+        // Don't auto-start - user must click button
+    </script>
+</body>
+</html>
